@@ -1,0 +1,49 @@
+    Deploying a Multi-Container Application with Docker Networks
+
+
+Docker networking enables seamless interaction between containers, allowing applications to function as cohesive units. In this article, we'll walk through setting up and running the Yelb application using a user-defined Docker bridge network. Yelb is a simple web application that demonstrates how different services interact in a containerized environment.
+Step 1: Create a Docker Network
+Before launching any containers, let's create a user-defined bridge network. This network will allow containers to communicate with each other while keeping external access controlled.
+
+docker network create yelb-network
+This network will be used to connect all components of the Yelb application.
+
+Step 2: Deploy Redis Server
+Redis acts as a caching layer for storing page views. We'll run Redis within our yelb-network and expose it on port 6379.
+docker run --name redis-server  --network=yelb-network  -p 6379:6379  -d redis:4.0.2
+This starts Redis in detached mode (-d) and assigns it to our yelb-network.
+
+Step 3: Run PostgreSQL Database
+Next, we need a database to store persistent vote data. We'll deploy PostgreSQL using the mreferre/yelb-db image.
+docker run --name yelb-db  --network=yelb-network  -p 5432:5432  -d mreferre/yelb-db:0.6
+This container will store voting data persistently.
+
+Step 4: Start the Yelb App Server
+The application server processes user requests and connects to both Redis and PostgreSQL.
+docker run --name yelb-appserver  --network=yelb-network  -d -p 4567:4567  -e RACK_ENV=test  mreferre/yelb-appserver:0.7
+The -e RACK_ENV=test sets up the environment for testing purposes.
+
+Step 5: Launch the Yelb UI
+The front-end interface connects to the Yelb app server and presents the UI to users.
+docker run --name yelb-ui  --network=yelb-network  -d -p 8083:80  -e UI_ENV=test  mreferre/yelb-ui:0.10
+Now, the UI is exposed on port 8080, allowing users to interact with the application.
+
+Step 6: Test the Application
+Everything is now set up! Open your browser and navigate to:
+http://localhost:8083
+Interact with the UI and verify that all services are communicating correctly.
+
+Conclusion
+By using a user-defined Docker network, we established seamless communication between multiple containers, ensuring that each component of the Yelb application interacts properly. This approach enhances security, maintainability, and performance.
+Now the main question is: If we hadn’t used a user-defined network, our containers would have had trouble talking to each other smoothly. Here’s what would happen:
+1. Harder to Find Each Other
+Right now, our containers can call each other by name (e.g., yelb-appserver can talk to yelb-db). Without a user-defined network, they wouldn’t recognize names and would need to use changing IP addresses—like trying to call a friend whose phone number keeps changing! 📞❌
+2. More Manual Work
+With a user-defined network, containers automatically know where to send data. Without it, we'd need to manually open ports and configure each connection, like giving everyone in an office their own walkie-talkie and hoping they tune into the right channel. 📡
+3. Security Risks
+A custom network keeps our services grouped together, like a private chat room. Without it, they’d all be in a giant public forum where other containers could listen in or interfere. 👀🔓
+4. Messy Scaling
+If we wanted to add more services later, a user-defined network makes it easy. Without it, we’d have to keep track of more ports and IP addresses, making things complicated fast—like adding more people to a group call but having to dial their number each time. 📲📲
+Bottom Line
+Using a user-defined network makes everything simpler, more secure, and easier to manage—like having a shared contact list instead of remembering phone numbers! ☎️✅
+
